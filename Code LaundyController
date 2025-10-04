@@ -1,0 +1,137 @@
+package org.example.Controller;
+
+import org.example.Model.LaundryService;
+import org.example.Model.Transaksi;
+import org.example.Model.TransaksiDAO;
+import org.example.View.LaundryView;
+
+import java.sql.SQLException;
+import java.util.List;
+
+public class LaundryController {
+    private LaundryView view;
+    private TransaksiDAO transaksiDAO;
+
+    public LaundryController(LaundryView view) {
+        this.view = view;
+        this.transaksiDAO = new TransaksiDAO();
+        this.view.setController(this);
+    }
+
+    public void hitungTotal() {
+        try {
+            // Validasi input kosong
+            String id = view.getIdPelanggan();
+            String nama = view.getNamaPelanggan();
+            String beratStr = view.getBeratText();
+            String jumlahStr = view.getJumlahText();
+            String layanan = view.getLayanan();
+
+            if (id.isEmpty() || nama.isEmpty() || beratStr.isEmpty() || jumlahStr.isEmpty()) {
+                view.showErrorMessage("Semua field harus diisi!");
+                return;
+            }
+
+            // Validasi dan parsing angka
+            int berat, jumlah;
+            try {
+                berat = Integer.parseInt(beratStr);
+                jumlah = Integer.parseInt(jumlahStr);
+                if (berat <= 0 || jumlah <= 0) {
+                    view.showErrorMessage("Berat dan jumlah harus lebih dari 0!");
+                    return;
+                }
+            } catch (NumberFormatException ex) {
+                view.showErrorMessage("Berat dan jumlah harus angka!");
+                return;
+            }
+
+            // Hitung total menggunakan service
+            int totalHarga = LaundryService.hitungTotalHarga(berat, jumlah, layanan);
+
+            // Buat objek transaksi
+            Transaksi transaksi = new Transaksi();
+            transaksi.setIdPelanggan(id);
+            transaksi.setNamaPelanggan(nama);
+            transaksi.setBerat(berat);
+            transaksi.setJumlah(jumlah);
+            transaksi.setLayanan(layanan);
+            transaksi.setTotalHarga(totalHarga);
+
+            // Tampilkan hasil di view
+            view.displayHitungan(transaksi);
+
+        } catch (Exception e) {
+            view.showErrorMessage("Error saat menghitung total: " + e.getMessage());
+        }
+    }
+
+    public void prosesBayar() {
+        try {
+            Transaksi currentTransaksi = view.getCurrentTransaksi();
+            if (currentTransaksi == null) {
+                view.showInfoMessage("Tekan tombol 'Hitung Total' terlebih dahulu.");
+                return;
+            }
+
+            String bayarStr = view.getInputDialog("Masukkan jumlah uang yang dibayar:");
+            if (bayarStr == null) return; // user cancel
+
+            int bayar;
+            try {
+                bayar = Integer.parseInt(bayarStr);
+                if (!LaundryService.validasiPembayaran(bayar, currentTransaksi.getTotalHarga())) {
+                    view.showErrorMessage("Uang dibayar kurang dari total harga!");
+                    return;
+                }
+            } catch (NumberFormatException ex) {
+                view.showErrorMessage("Masukkan angka yang valid!");
+                return;
+            }
+
+            // Hitung kembalian
+            int kembalian = LaundryService.hitungKembalian(bayar, currentTransaksi.getTotalHarga());
+
+            // Set nilai bayar dan kembalian
+            currentTransaksi.setBayar(bayar);
+            currentTransaksi.setKembalian(kembalian);
+
+            // Tampilkan struk
+            view.displayStruk(currentTransaksi);
+
+            // Simpan ke database
+            boolean berhasil = transaksiDAO.simpanTransaksi(currentTransaksi);
+            if (berhasil) {
+                view.showSuccessMessage("Transaksi berhasil disimpan di database.");
+            } else {
+                view.showErrorMessage("Gagal menyimpan transaksi.");
+            }
+
+            // Konfirmasi cetak struk
+            int opsiCetak = view.getConfirmDialog("Apakah Anda ingin mencetak struk?", "Cetak Struk");
+            if (opsiCetak == 0) { // YES_OPTION = 0
+                view.showInfoMessage("Struk sedang dicetak...");
+            } else {
+                view.showInfoMessage("Struk tidak dicetak.");
+            }
+
+            // Kembali ke menu utama
+            view.clearSistemLaundry();
+            view.switchPanel("MenuUtama");
+
+        } catch (SQLException e) {
+            view.showErrorMessage("Error saat menyimpan transaksi: " + e.getMessage());
+        } catch (Exception e) {
+            view.showErrorMessage("Error saat memproses pembayaran: " + e.getMessage());
+        }
+    }
+
+    public void loadRiwayat() {
+        try {
+            List<Transaksi> transaksiList = transaksiDAO.getAllTransaksi();
+            view.updateRiwayatTable(transaksiList);
+        } catch (SQLException e) {
+            view.showErrorMessage("Error saat mengambil data transaksi: " + e.getMessage());
+        }
+    }
+}
