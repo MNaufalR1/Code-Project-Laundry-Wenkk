@@ -1,0 +1,24 @@
+package org.example.Model;
+
+public class LaundryService {
+    private static final int TARIF_PER_KG = 7000;
+    private static final int TARIF_SETRIKA_PER_PAKAIAN = 1000;
+
+    public static int hitungTotalHarga(int berat, int jumlah, String layanan) {
+        int totalHarga = berat * TARIF_PER_KG;
+
+        if ("Cuci Setrika (+1000/pakaian)".equals(layanan)) {
+            totalHarga += jumlah * TARIF_SETRIKA_PER_PAKAIAN;
+        }
+
+        return totalHarga;
+    }
+
+    public static int hitungKembalian(int bayar, int totalHarga) {
+        return bayar - totalHarga;
+    }
+
+    public static boolean validasiPembayaran(int bayar, int totalHarga) {
+        return bayar >= totalHarga;
+    }
+}
