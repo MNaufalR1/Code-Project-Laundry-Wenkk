@@ -1,0 +1,60 @@
+package org.example.Model;
+
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
+
+public class TransaksiDAO {
+
+    private Connection conn;
+
+    public TransaksiDAO() {
+        try {
+            String url = "jdbc:mysql://localhost:3306/laundrydb";
+            String user = "root";
+            String password = "";
+            conn = DriverManager.getConnection(url, user, password);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public boolean simpanTransaksi(Transaksi transaksi) throws SQLException {
+        String sql = "INSERT INTO transaksi (id_pelanggan, nama_pelanggan, berat, jumlah, layanan, total_harga, bayar, kembalian, tanggal) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, transaksi.getIdPelanggan());
+            stmt.setString(2, transaksi.getNamaPelanggan());
+            stmt.setInt(3, transaksi.getBerat());
+            stmt.setInt(4, transaksi.getJumlah());
+            stmt.setString(5, transaksi.getLayanan());
+            stmt.setInt(6, transaksi.getTotalHarga());
+            stmt.setInt(7, transaksi.getBayar());
+            stmt.setInt(8, transaksi.getKembalian());
+            return stmt.executeUpdate() > 0;
+        }
+    }
+
+    public List<Transaksi> getAllTransaksi() throws SQLException {
+        List<Transaksi> list = new ArrayList<>();
+        String sql = "SELECT * FROM transaksi ORDER BY tanggal DESC";
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+
+            while (rs.next()) {
+                Transaksi t = new Transaksi();
+                t.setIdTransaksi(rs.getInt("id_transaksi"));
+                t.setIdPelanggan(rs.getString("id_pelanggan"));
+                t.setNamaPelanggan(rs.getString("nama_pelanggan"));
+                t.setBerat(rs.getInt("berat"));
+                t.setJumlah(rs.getInt("jumlah"));
+                t.setLayanan(rs.getString("layanan"));
+                t.setTotalHarga(rs.getInt("total_harga"));
+                t.setBayar(rs.getInt("bayar"));
+                t.setKembalian(rs.getInt("kembalian"));
+                t.setTanggal(rs.getTimestamp("tanggal").toLocalDateTime());
+                list.add(t);
+            }
+        }
+        return list;
+    }
+}
